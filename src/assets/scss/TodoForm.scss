@@ -1,0 +1,44 @@
+.todo-form {
+  margin-bottom: 24px;
+
+  &__input {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    height: 38px;
+
+    input,
+    button {
+      height: 100%;
+      box-sizing: border-box;
+    }
+
+    input {
+      width: 85%;
+      border-radius: 16px;
+      border: 2px solid #313131;
+      padding: 0 18px;
+      font-size: 15px;
+    }
+
+    button {
+      width: 15%;
+      background: white;
+      border-radius: 32px;
+      padding: 0 16px;
+      font-size: 15px;
+      font-family: cursive;
+    }
+  }
+
+  &__alert {
+    min-height: 25px;
+
+    p {
+      color: #d1495b;
+      font-size: 1em;
+      font-weight: 600;
+    }
+  }
+}

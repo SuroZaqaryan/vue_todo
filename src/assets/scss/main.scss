@@ -1,0 +1,39 @@
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  padding: 1rem;
+  font-family: system-ui;
+  font-size: 14px;
+}
+
+main {
+  max-width: 1200px;
+  margin: auto;
+}
+
+img,
+button {
+  cursor: pointer;
+}
+
+li {
+  list-style-type: none;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: #ffffff;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #c9c9c9;
+  border: 2px solid #ffffff;
+  border-radius: 3px;
+}
