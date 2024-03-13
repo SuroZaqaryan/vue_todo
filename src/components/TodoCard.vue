@@ -29,7 +29,7 @@
       >
         <ul>
           <li @click="todo.isEditing = true, setFocus()">Редактировать</li>
-          <li @click="deleteTodo(todo.id)">Удалить</li>
+          <li @click="deleteTodo(todo.id, todo.guid)">Удалить</li>
         </ul>
       </div>
     </div>

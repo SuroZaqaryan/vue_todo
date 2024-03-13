@@ -1,5 +1,5 @@
-import { defineStore } from "pinia";
-import { v4 as uuidv4 } from 'uuid';
+import {defineStore} from "pinia";
+import {v4 as uuidv4} from 'uuid';
 
 const getLocalStorageTodoList = () => {
   return JSON.parse(localStorage.getItem('todoList')) || [];
@@ -30,7 +30,10 @@ export const useTodoListStore = defineStore("todoList", {
           throw new Error('Failed to fetch todos');
         }
 
-        let data = await response.json();
+        let data = (await response.json()).map(todo => {
+          todo.guid = uuidv4();
+          return todo;
+        });
 
         const slicedData = data.slice(0, 15);
 
@@ -44,31 +47,59 @@ export const useTodoListStore = defineStore("todoList", {
     },
 
     async addTodo(item) {
-      const newTodo = { id: uuidv4(), title: item, completed: false };
       const todoList = getLocalStorageTodoList();
+      let requestBody = {userId: 1, title: item, body: '', completed: false};
 
-      todoList.push(newTodo);
-      setLocalStorageTodoList(todoList);
-      this.todoList.push(newTodo);
+      try {
+        const response = await fetch(`${process.env.BASE_URL}/todos`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+
+        data.guid = uuidv4();
+
+        todoList.push(data);
+        setLocalStorageTodoList(todoList);
+
+        this.todoList.push(data);
+
+        return data;
+      } catch (error) {
+        console.error('Error:', error);
+      }
+      // const newTodo = { id: uuidv4(), title: item, completed: false };
+      // const todoList = getLocalStorageTodoList();
+      //
+      // todoList.push(newTodo);
+      // setLocalStorageTodoList(todoList);
+      // this.todoList.push(newTodo);
     },
 
-    async deleteTodo(itemID) {
+    async deleteTodo(id, guid) {
       try {
-        const response = await fetch(`${process.env.BASE_URL}/todos/${itemID}`, {
+        const response = await fetch(`${process.env.BASE_URL}/todos/${id}`, {
           method: 'DELETE'
         });
 
-        if (response.ok) {
-          let todoList = getLocalStorageTodoList();
-          todoList = todoList.filter(todo => todo.id !== itemID);
-
-          setLocalStorageTodoList(todoList);
-          this.todoList = this.todoList.filter(todo => todo.id !== itemID);
-        } else {
+        if (!response.ok) {
           throw new Error('Failed to delete todo');
         }
+
+        let todoList = getLocalStorageTodoList();
+        todoList = todoList.filter(todo => todo.guid !== guid);
+
+        setLocalStorageTodoList(todoList);
+        this.todoList = this.todoList.filter(todo => todo.guid !== guid);
+
       } catch (error) {
-        console.error(`Error deleting todo with ID ${itemID}: ${error.message}`);
+        console.error(`Error deleting todo with ID ${guid}: ${error.message}`);
         throw error;
       }
     },
@@ -88,7 +119,7 @@ export const useTodoListStore = defineStore("todoList", {
         const data = await response.json();
         let todoList = getLocalStorageTodoList();
 
-        todoList = todoList.map(todo => (todo.id === data.id ? data : todo));
+        todoList = todoList.map(todo => (todo.guid === data.guid ? data : todo));
 
         setLocalStorageTodoList(todoList);
         this.todoList = todoList;
@@ -108,7 +139,7 @@ export const useTodoListStore = defineStore("todoList", {
 
     moveToReady(todo) {
       const todoList = getLocalStorageTodoList();
-      const updatedTodoList = todoList.map(t => (t.id === todo.id ? { ...t, completed: !t.completed } : t));
+      const updatedTodoList = todoList.map(t => (t.guid === todo.guid ? {...t, completed: !t.completed} : t));
 
       setLocalStorageTodoList(updatedTodoList);
       this.todoList = updatedTodoList;
