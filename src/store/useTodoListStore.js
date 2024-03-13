@@ -1,16 +1,24 @@
-import {defineStore} from "pinia";
+import { defineStore } from "pinia";
+import { v4 as uuidv4 } from 'uuid';
+
+const getLocalStorageTodoList = () => {
+  return JSON.parse(localStorage.getItem('todoList')) || [];
+};
+
+const setLocalStorageTodoList = (todoList) => {
+  localStorage.setItem('todoList', JSON.stringify(todoList));
+};
 
 export const useTodoListStore = defineStore("todoList", {
   state: () => ({
-    todoList: JSON.parse(localStorage.getItem('todoList')) || [],
-    id: 0,
+    todoList: getLocalStorageTodoList(),
     showAlert: false,
   }),
 
   actions: {
     async getTodos() {
       try {
-        let todoList = JSON.parse(localStorage.getItem('todoList')) || [];
+        let todoList = getLocalStorageTodoList();
 
         if (todoList.length) {
           return todoList;
@@ -19,45 +27,29 @@ export const useTodoListStore = defineStore("todoList", {
         const response = await fetch(`${process.env.BASE_URL}/todos`);
 
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error('Failed to fetch todos');
         }
 
         let data = await response.json();
 
         const slicedData = data.slice(0, 15);
 
-        localStorage.setItem('todoList', JSON.stringify(slicedData));
+        setLocalStorageTodoList(slicedData);
 
         return slicedData;
       } catch (err) {
-        console.error(err)
+        console.error('Error getting todos:', err);
+        throw err;
       }
     },
 
     async addTodo(item) {
-      let todoList = JSON.parse(localStorage.getItem('todoList')) || [];
-      let requestBody = {userId: 1, title: item, body: '', completed: false};
+      const newTodo = { id: uuidv4(), title: item, completed: false };
+      const todoList = getLocalStorageTodoList();
 
-      try {
-        const response = await fetch(`${process.env.BASE_URL}/todos`, {
-          method: 'POST',
-          body: JSON.stringify(requestBody)
-        });
-
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-
-        const data = await response.json();
-
-        todoList.push(data);
-        localStorage.setItem('todoList', JSON.stringify(todoList));
-
-        this.todoList.push(data);
-        return data;
-      } catch (error) {
-        console.error('Error:', error);
-      }
+      todoList.push(newTodo);
+      setLocalStorageTodoList(todoList);
+      this.todoList.push(newTodo);
     },
 
     async deleteTodo(itemID) {
@@ -67,63 +59,59 @@ export const useTodoListStore = defineStore("todoList", {
         });
 
         if (response.ok) {
-          let todoList = JSON.parse(localStorage.getItem('todoList')) || [];
-          todoList = todoList.filter((object) => object.id !== itemID);
+          let todoList = getLocalStorageTodoList();
+          todoList = todoList.filter(todo => todo.id !== itemID);
 
-          this.todoList = this.todoList.filter((object) => object.id !== itemID);
-
-          localStorage.setItem('todoList', JSON.stringify(todoList));
+          setLocalStorageTodoList(todoList);
+          this.todoList = this.todoList.filter(todo => todo.id !== itemID);
+        } else {
+          throw new Error('Failed to delete todo');
         }
       } catch (error) {
-        console.error(`Error deleting data with ID ${itemID}: ${error.message}`);
-      }
-    },
-
-    async editTodo(item) {
-      const {completed, id, title, userId} = item;
-
-      try {
-        const response = await fetch(`${process.env.BASE_URL}/todos/${item.id}`
-          , {
-          method: 'PUT',
-          body: JSON.stringify({
-            completed,
-            id,
-            title,
-            userId
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to update data');
-        }
-
-        let todoList = JSON.parse(localStorage.getItem('todoList')) || [];
-
-        todoList.forEach((todo, index) => {
-          if (todo.id === item.id) todoList[index] = item;
-        });
-
-        localStorage.setItem('todoList', JSON.stringify(todoList));
-      } catch (error) {
-        console.error('Error updating data:', error);
+        console.error(`Error deleting todo with ID ${itemID}: ${error.message}`);
         throw error;
       }
     },
 
-    moveToReady(item) {
-      let todoList = JSON.parse(localStorage.getItem('todoList')) || [];
-      const todo = this.todoList.find(obj => obj.id === item.id);
+    async editTodo(updatedTodo) {
+      try {
+        const response = await fetch(`${process.env.BASE_URL}/todos/${updatedTodo.id}`, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(updatedTodo),
+        });
 
-      if (todo) {
-        todo.completed = !todo.completed;
+        if (!response.ok) {
+          throw new Error('Failed to update todo');
+        }
+
+        const data = await response.json();
+        let todoList = getLocalStorageTodoList();
+
+        todoList = todoList.map(todo => (todo.id === data.id ? data : todo));
+
+        setLocalStorageTodoList(todoList);
+        this.todoList = todoList;
+      } catch (error) {
+        console.error('Error updating todo:', error);
+        throw error;
+      } finally {
+        const todoList = getLocalStorageTodoList();
+
+        todoList.forEach((todo, index) => {
+          if (todo.id === updatedTodo.id) todoList[index] = updatedTodo;
+        });
+
+        setLocalStorageTodoList(todoList);
       }
+    },
 
-      todoList.forEach((todo, index) => {
-        if (todo.id === item.id) todoList[index] = item;
-      });
+    moveToReady(todo) {
+      const todoList = getLocalStorageTodoList();
+      const updatedTodoList = todoList.map(t => (t.id === todo.id ? { ...t, completed: !t.completed } : t));
 
-      localStorage.setItem('todoList', JSON.stringify(todoList));
+      setLocalStorageTodoList(updatedTodoList);
+      this.todoList = updatedTodoList;
     },
 
     inputAlert() {
@@ -133,12 +121,7 @@ export const useTodoListStore = defineStore("todoList", {
   },
 
   getters: {
-    pendingTodos: (state) => {
-      return state.todoList.filter(todo => !todo.completed);
-    },
-
-    completedTodos: (state) => {
-      return state.todoList.filter(todo => todo.completed);
-    },
+    pendingTodos: (state) => state.todoList.filter(todo => !todo.completed),
+    completedTodos: (state) => state.todoList.filter(todo => todo.completed),
   },
 });

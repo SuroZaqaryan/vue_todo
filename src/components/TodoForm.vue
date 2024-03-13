@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="addItemAndClear(todo)" class="todo-form">
     <div class="todo-form__input">
-      <input v-model="todo" type="text" placeholder="Добавить задачу..." />
+      <input v-model="todo" @keydown.enter.prevent="addItemAndClear(todo)" type="text" placeholder="Добавить задачу..." />
       <button>
         Добавить
       </button>
